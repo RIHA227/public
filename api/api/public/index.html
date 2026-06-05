@@ -87,26 +87,19 @@ body{background:var(--bg);color:var(--text);font-family:'Noto Sans JP',sans-seri
 @keyframes fadeIn{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
 @media(max-width:600px){.pred-layout{grid-template-columns:1fr}.radar-card{display:none}.main-card{flex-direction:column}}
 </style>
-<link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700;900&family=Orbitron:wght@700;900&display=swap" rel="stylesheet">
 </head>
 <body>
 <div class="title"><span class="gold">NIKKEI</span> DEEP <span class="cyan">ORACLE</span></div>
 <div class="subtitle" id="todayDate"></div>
-
 <div class="market-board">
-  <div class="market-board-title">
-    <span>📡 リアルタイム市場データ</span>
-    <button class="btn-refresh" onclick="loadMarket()">🔄 更新</button>
-  </div>
+  <div class="market-board-title"><span>📡 リアルタイム市場データ</span><button class="btn-refresh" onclick="loadMarket()">🔄 更新</button></div>
   <div class="market-grid" id="marketGrid"><div class="market-item"><div class="market-label" style="color:var(--cyan)">取得中...</div></div></div>
 </div>
-
 <div class="tabs">
   <button class="tab active" onclick="switchTab('nikkei')" id="tab-nikkei">🗾 日経平均</button>
   <button class="tab" onclick="switchTab('stock')" id="tab-stock">📈 個別銘柄</button>
 </div>
-
 <div id="panel-nikkei">
   <div class="log-card">
     <div class="log-title">📋 予測精度ログ</div>
@@ -126,7 +119,6 @@ body{background:var(--bg);color:var(--text);font-family:'Noto Sans JP',sans-seri
   <div id="nikkeiSpinner" style="display:none"></div>
   <div id="nikkeiResult"></div>
 </div>
-
 <div id="panel-stock" style="display:none">
   <div class="stock-input-row">
     <input class="stock-input" id="stockInput" placeholder="銘柄コード（例: 8035）" value="8035" onkeydown="if(event.key==='Enter')runStock()">
@@ -143,13 +135,12 @@ body{background:var(--bg);color:var(--text);font-family:'Noto Sans JP',sans-seri
   <div id="stockSpinner" style="display:none"></div>
   <div id="stockResult"></div>
 </div>
-
 <div class="disclaimer">⚠️ 本予測はAIによる統計的推計です。投資勧誘ではありません。投資判断はご自身の責任で行ってください。</div>
-
 <script>
 var marketData=null;
 function fmt2(v){return v!=null?v.toLocaleString('ja-JP',{minimumFractionDigits:2,maximumFractionDigits:2}):'—'}
 function fmtPx(v,isNk){return(isNk?'':'¥')+fmt2(v)}
+function safeNum(v){return typeof v==='number'?v:(v?.changePct||v?.price||0)}
 
 async function loadMarket(){
   document.getElementById('marketGrid').innerHTML='<div class="market-item"><div class="market-label" style="color:var(--cyan)">取得中...</div></div>';
@@ -158,7 +149,7 @@ async function loadMarket(){
     var json=await res.json();
     if(!json.ok)throw new Error('fail');
     marketData=json.data;
-    var items=[{key:'nikkei',label:'日経平均',color:'var(--gold)',suffix:''},{key:'usdjpy',label:'ドル円',color:'var(--cyan)',suffix:'円'},{key:'sp500',label:'SP500',color:'var(--green)',suffix:''},{key:'nasdaq',label:'NASDAQ',color:'var(--purple)',suffix:''},{key:'vix',label:'VIX',color:'var(--amber)',suffix:''},{key:'us10y',label:'米10年金利',color:'var(--pink)',suffix:'%'}];
+    var items=[{key:'nikkei',label:'日経平均',color:'var(--gold)',suffix:'',type:'price'},{key:'usdjpy',label:'ドル円',color:'var(--cyan)',suffix:'円',type:'price'},{key:'sp500',label:'SP500',color:'var(--green)',suffix:'',type:'price'},{key:'nasdaq',label:'NASDAQ',color:'var(--purple)',suffix:'',type:'price'},{key:'vix',label:'VIX',color:'var(--amber)',suffix:'',type:'price'},{key:'us10y',label:'米10年金利',color:'var(--pink)',suffix:'%',type:'price'}];
     document.getElementById('marketGrid').innerHTML=items.map(function(x){
       var d=marketData[x.key];
       if(!d)return'<div class="market-item"><div class="market-label">'+x.label+'</div><div style="color:var(--muted);font-size:11px">取得失敗</div></div>';
@@ -232,6 +223,11 @@ async function runStock(){
 function renderResult(json,isNk,ticker){
   var ens=json.ensemble,inp=json.input,macro=json.macro;
   var base=inp.current,up=ens.diffFromCurrent>=0;
+  var sp500pct=(macro.sp500?.changePct!=null?macro.sp500.changePct:typeof macro.sp500==='number'?macro.sp500:0);
+  var nasdaqpct=(macro.nasdaq?.changePct!=null?macro.nasdaq.changePct:typeof macro.nasdaq==='number'?macro.nasdaq:0);
+  var vixval=(macro.vix?.price!=null?macro.vix.price:typeof macro.vix==='number'?macro.vix:0);
+  var usdval=(macro.usdjpy?.price!=null?macro.usdjpy.price:typeof macro.usdjpy==='number'?macro.usdjpy:0);
+  var us10val=(macro.us10y?.price!=null?macro.us10y.price:typeof macro.us10y==='number'?macro.us10y:0);
   var radarId=isNk?'radarSvgNk':'radarSvgStock';
   var CC={technical:'var(--cyan)',fundamental:'var(--green)',sentiment:'var(--purple)',macro:'var(--blue)',deeplearning:'var(--pink)'};
   var CI={technical:'📈',fundamental:'📊',sentiment:'💬',macro:'🌐',deeplearning:'🤖'};
@@ -241,7 +237,20 @@ function renderResult(json,isNk,ticker){
     var scol=sc==='上昇'||sc==='買い'?'var(--green)':sc==='下落'||sc==='売り'?'var(--red)':'var(--muted)';
     return'<div class="model-card" style="border:1px solid '+c+'22"><div class="model-header"><span class="model-name">'+CI[k]+' '+CL[k]+'</span><span class="signal-badge" style="background:'+scol+'22;color:'+scol+';border:1px solid '+scol+'66">'+sc+'</span></div><div class="model-price" style="color:'+c+'">'+fmtPx(m.close,isNk)+'</div><div class="model-conf-row"><span>信頼度</span><span style="color:'+c+'">'+m.confidence.toFixed(1)+'%</span></div><div class="conf-bar-wrap"><div class="conf-bar" style="width:'+m.confidence+'%;background:linear-gradient(90deg,'+c+'66,'+c+')"></div></div><div class="model-reason">'+m.reason+'</div></div>';
   }).join('');
-  return'<div class="result-wrap">'+(isNk?'<div class="risk-banner">⚠️ <b style="color:var(--red)">本日最大リスク：</b>米雇用統計（21:30）→ 今日終値への影響は間接的・<b>明日の相場を決定</b></div>':'')+'<div class="main-card"><div>'+(isNk?'<div style="font-size:20px;font-weight:900"><span class="gold">日経平均株価</span><span class="badge-small">史上最高値翌日</span></div><div style="font-size:13px;color:var(--muted);margin-top:5px">現在値 <span class="val-red">'+fmt2(base)+'</span></div><div style="font-size:11px;color:var(--muted);margin-top:2px">前日終値: '+fmt2(inp.prevClose)+'円 <span style="color:var(--amber)">← 史上最高値</span></div>':'<div style="font-size:11px;color:var(--muted)">'+ticker+'</div><div style="font-size:19px;font-weight:900">'+inp.name+'</div><div style="font-size:12px;color:var(--muted);margin-top:4px">現在価格 <b>¥'+fmt2(base)+'</b></div>')+'</div><div style="text-align:right"><div class="ensemble-label">🤖 アンサンブル予測終値</div><div class="ensemble-val">'+fmtPx(ens.close,isNk)+'</div><div style="font-size:12px;font-weight:800;color:'+(up?'var(--green)':'var(--red)')+';margin-top:2px">'+(up?'▲':'▼')+fmt2(Math.abs(ens.diffFromCurrent))+'円 ('+(up?'+':'')+((ens.diffFromCurrent/base)*100).toFixed(2)+'%)</div><div style="font-size:10px;color:var(--muted);margin-top:4px">95%CI: '+fmt2(ens.low)+'〜'+fmt2(ens.high)+'<br>推定誤差: ±'+fmt2(ens.sigma)+'円 | 信頼度: '+ens.confidence.toFixed(1)+'%</div></div></div><div class="stats-grid"><div class="stat-card"><div class="stat-label">上値目標(95%CI)</div><div class="stat-val" style="color:var(--green)">'+fmt2(ens.high)+'</div></div><div class="stat-card"><div class="stat-label">下値目標(95%CI)</div><div class="stat-val" style="color:var(--red)">'+fmt2(ens.low)+'</div></div><div class="stat-card"><div class="stat-label">総合信頼度</div><div class="stat-val" style="color:var(--cyan)">'+ens.confidence.toFixed(1)+'%</div></div></div>'+(isNk?'<div class="macro-grid"><div class="macro-card"><div class="macro-title" style="color:var(--cyan)">🇺🇸 米国・イベント</div><div class="macro-body">SP500 '+(macro.sp500>=0?'+':'')+macro.sp500.toFixed(2)+'% / NASDAQ '+(macro.nasdaq>=0?'+':'')+macro.nasdaq.toFixed(2)+'%<br>米雇用統計21:30→明日の相場を決定</div></div><div class="macro-card"><div class="macro-title" style="color:var(--gold)">💱 為替・金利</div><div class="macro-body">ドル円 '+macro.usdjpy.toFixed(2)+'円<br>米10年 '+macro.us10y.toFixed(2)+'% / VIX '+macro.vix.toFixed(2)+'</div></div></div><div class="sector-card"><div class="sector-title">🏭 注目セクター</div><div class="sector-tags"><span class="sector-tag">AI・半導体（東エレ・TDK）</span><span class="sector-tag">銀行・金融</span><span class="sector-tag">宇宙（SpaceX 6/12）</span></div></div>':'')+'<div class="summary-card">💡 '+ens.summary+'</div><div class="pred-layout"><div class="radar-card"><div class="radar-title">📡 信頼度レーダー</div><svg id="'+radarId+'" width="151" height="151" style="display:block;margin:0 auto"></svg></div><div class="model-cards">'+cards+'</div></div><div class="risk-catalyst"><div class="risk-card"><div class="rc-title" style="color:var(--red)">⚠️ リスク要因</div><div class="rc-item">• VIX='+macro.vix.toFixed(1)+'・米10年'+macro.us10y.toFixed(2)+'%高止まり</div><div class="rc-item">• ドル円'+macro.usdjpy.toFixed(2)+'円の円高リスク</div><div class="rc-item">• 米雇用統計（21:30）強い→明日急落</div></div><div class="catalyst-card"><div class="rc-title" style="color:var(--green)">🚀 上昇触媒</div><div class="rc-item">• 後場の押し目買い・自社株買い</div><div class="rc-item">• SpaceX上場（6/12）観測継続</div><div class="rc-item">• 雇用統計無難通過→明日反発</div></div></div></div>';
+  return'<div class="result-wrap">'
+    +(isNk?'<div class="risk-banner">⚠️ <b style="color:var(--red)">本日最大リスク：</b>高値圏での利益確定・米経済指標に注意</div>':'')
+    +'<div class="main-card"><div>'
+    +(isNk?'<div style="font-size:20px;font-weight:900"><span class="gold">日経平均株価</span></div><div style="font-size:13px;color:var(--muted);margin-top:5px">現在値 <span class="val-red">'+fmt2(base)+'</span></div><div style="font-size:11px;color:var(--muted);margin-top:2px">前日終値: '+fmt2(inp.prevClose)+'円</div>'
+    :'<div style="font-size:11px;color:var(--muted)">'+ticker+'</div><div style="font-size:19px;font-weight:900">'+(inp.name||ticker)+'</div><div style="font-size:12px;color:var(--muted);margin-top:4px">現在価格 <b>¥'+fmt2(base)+'</b></div>')
+    +'</div><div style="text-align:right"><div class="ensemble-label">🤖 アンサンブル予測終値</div><div class="ensemble-val">'+fmtPx(ens.close,isNk)+'</div>'
+    +'<div style="font-size:12px;font-weight:800;color:'+(up?'var(--green)':'var(--red)')+';margin-top:2px">'+(up?'▲':'▼')+fmt2(Math.abs(ens.diffFromCurrent))+'円 ('+(up?'+':'')+((ens.diffFromCurrent/base)*100).toFixed(2)+'%)</div>'
+    +'<div style="font-size:10px;color:var(--muted);margin-top:4px">95%CI: '+fmt2(ens.low)+'〜'+fmt2(ens.high)+'<br>推定誤差: ±'+fmt2(ens.sigma)+'円 | 信頼度: '+ens.confidence.toFixed(1)+'%</div></div></div>'
+    +'<div class="stats-grid"><div class="stat-card"><div class="stat-label">上値目標(95%CI)</div><div class="stat-val" style="color:var(--green)">'+fmt2(ens.high)+'</div></div><div class="stat-card"><div class="stat-label">下値目標(95%CI)</div><div class="stat-val" style="color:var(--red)">'+fmt2(ens.low)+'</div></div><div class="stat-card"><div class="stat-label">総合信頼度</div><div class="stat-val" style="color:var(--cyan)">'+ens.confidence.toFixed(1)+'%</div></div></div>'
+    +(isNk?'<div class="macro-grid"><div class="macro-card"><div class="macro-title" style="color:var(--cyan)">🇺🇸 米国・イベント</div><div class="macro-body">SP500 '+(sp500pct>=0?'+':'')+sp500pct.toFixed(2)+'% / NASDAQ '+(nasdaqpct>=0?'+':'')+nasdaqpct.toFixed(2)+'%</div></div><div class="macro-card"><div class="macro-title" style="color:var(--gold)">💱 為替・金利</div><div class="macro-body">ドル円 '+usdval.toFixed(2)+'円<br>米10年 '+us10val.toFixed(2)+'% / VIX '+vixval.toFixed(2)+'</div></div></div><div class="sector-card"><div class="sector-title">🏭 注目セクター</div><div class="sector-tags"><span class="sector-tag">AI・半導体（東エレ・TDK）</span><span class="sector-tag">銀行・金融</span><span class="sector-tag">宇宙・衛星関連</span></div></div>':'')
+    +'<div class="summary-card">💡 '+ens.summary+'</div>'
+    +'<div class="pred-layout"><div class="radar-card"><div class="radar-title">📡 信頼度レーダー</div><svg id="'+radarId+'" width="151" height="151" style="display:block;margin:0 auto"></svg></div><div class="model-cards">'+cards+'</div></div>'
+    +'<div class="risk-catalyst"><div class="risk-card"><div class="rc-title" style="color:var(--red)">⚠️ リスク要因</div><div class="rc-item">• VIX='+vixval.toFixed(1)+'・米10年金利'+us10val.toFixed(2)+'%</div><div class="rc-item">• ドル円'+usdval.toFixed(2)+'円の為替リスク</div><div class="rc-item">• 高値圏での利益確定売り圧力</div></div><div class="catalyst-card"><div class="rc-title" style="color:var(--green)">🚀 上昇触媒</div><div class="rc-item">• 押し目買い・自社株買い</div><div class="rc-item">• AI・半導体テーマ継続</div><div class="rc-item">• 外国人投資家の継続買い</div></div></div>'
+    +'</div>';
 }
 
 function initRadar(svgId,models){
