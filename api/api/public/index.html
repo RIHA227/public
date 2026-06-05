@@ -1,9 +1,276 @@
-{
-  "name": "nikkei-oracle",
-  "version": "1.0.0",
-  "description": "日経平均AIディープ予測システム",
-  "engines": { "node": "18.x" },
-  "dependencies": {
-    "node-fetch": "^3.3.2"
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NIKKEI DEEP ORACLE</title>
+<style>
+:root{--bg:#04080f;--panel:#080d1a;--card:#0c1220;--border:#152035;--border2:#1e3050;--cyan:#00e5ff;--gold:#ffd700;--green:#00e676;--red:#ff1744;--purple:#ce93d8;--amber:#ffb300;--blue:#448aff;--pink:#f48fb1;--text:#e8f4fd;--muted:#4a6080;--dim:#1a2840}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:'Noto Sans JP',sans-serif;min-height:100vh;padding:16px}
+.title{font-family:'Orbitron',sans-serif;font-size:20px;font-weight:900;letter-spacing:3px;text-align:center;margin-bottom:4px}
+.gold{color:var(--gold);text-shadow:0 0 20px rgba(255,215,0,.6)}
+.cyan{color:var(--cyan);text-shadow:0 0 16px rgba(0,229,255,.5)}
+.subtitle{font-size:10px;color:var(--muted);text-align:center;margin-bottom:18px}
+.market-board{background:var(--panel);border:1px solid var(--border2);border-radius:10px;padding:12px;margin-bottom:12px}
+.market-board-title{font-size:12px;font-weight:700;color:var(--cyan);margin-bottom:10px;display:flex;justify-content:space-between}
+.market-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.market-item{background:var(--card);border-radius:8px;padding:8px 10px}
+.market-label{font-size:10px;color:var(--muted);margin-bottom:3px}
+.market-price{font-size:13px;font-weight:800}
+.market-change{font-size:10px}
+.up{color:var(--green)}.down{color:var(--red)}
+.tabs{display:flex;background:var(--panel);border:1px solid var(--border2);border-radius:10px;padding:4px;margin:0 auto 16px;max-width:460px}
+.tab{flex:1;padding:10px 0;border-radius:7px;border:none;background:transparent;color:var(--muted);font-weight:700;font-size:13px;font-family:'Noto Sans JP',sans-serif;cursor:pointer}
+.tab.active{background:linear-gradient(135deg,rgba(255,215,0,.9),rgba(255,179,0,.9));color:#000}
+.btn-predict{background:linear-gradient(135deg,var(--gold),var(--amber));border:none;border-radius:12px;padding:14px 36px;color:#000;font-weight:900;font-size:15px;font-family:'Noto Sans JP',sans-serif;cursor:pointer;width:100%;max-width:360px;display:block;margin:0 auto 8px}
+.btn-refresh{background:transparent;border:1px solid var(--border2);border-radius:6px;padding:5px 12px;color:var(--cyan);font-size:11px;cursor:pointer}
+.stock-input-row{display:flex;gap:8px;margin-bottom:10px}
+.stock-input{flex:1;background:var(--panel);border:1px solid var(--border2);border-radius:8px;padding:12px 14px;color:var(--text);font-size:14px;font-family:'Noto Sans JP',sans-serif;outline:none}
+.btn-stock{background:linear-gradient(135deg,var(--cyan),var(--blue));border:none;border-radius:8px;padding:12px 18px;color:#000;font-weight:900;font-size:13px;cursor:pointer}
+.quick-btns{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin-bottom:16px}
+.quick-btn{background:transparent;border:1px solid var(--border2);border-radius:20px;padding:4px 12px;color:var(--muted);font-size:11px;cursor:pointer}
+.spinner-wrap{text-align:center;padding:40px 0}
+.spinner{width:60px;height:60px;position:relative;margin:0 auto 16px}
+.spin1{position:absolute;inset:0;border:3px solid var(--border2);border-top-color:var(--gold);border-radius:50%;animation:spin 1s linear infinite}
+.spin2{position:absolute;inset:8px;border:2px solid var(--border);border-bottom-color:var(--cyan);border-radius:50%;animation:spin 1.5s linear infinite reverse}
+.spin-step{color:var(--gold);font-weight:800;font-size:13px;animation:pulse 1.5s ease-in-out infinite;margin-bottom:8px}
+.progress-bar{max-width:280px;height:5px;background:var(--dim);border-radius:3px;overflow:hidden;margin:8px auto}
+.progress-fill{height:100%;background:linear-gradient(90deg,var(--cyan),var(--gold));border-radius:3px;transition:width .3s ease}
+.result-wrap{animation:fadeIn .5s ease}
+.main-card{background:linear-gradient(135deg,var(--panel),#0a1428);border:1px solid var(--border2);border-radius:14px;padding:20px;margin-bottom:12px;display:flex;flex-wrap:wrap;gap:16px;justify-content:space-between;align-items:flex-start}
+.badge-small{font-size:10px;color:var(--amber);border:1px solid rgba(255,179,0,.3);border-radius:4px;padding:1px 6px;margin-left:8px}
+.val-red{color:var(--red);font-size:17px;font-weight:900}
+.ensemble-label{font-size:10px;color:var(--muted);margin-bottom:3px}
+.ensemble-val{font-family:'Orbitron',sans-serif;font-size:28px;font-weight:900;color:var(--gold);text-shadow:0 0 24px rgba(255,215,0,.7);letter-spacing:-1px}
+.stats-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px}
+.stat-card{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:10px 12px;text-align:center}
+.stat-label{font-size:9px;color:var(--muted);margin-bottom:5px}
+.stat-val{font-size:15px;font-weight:900;font-family:'Orbitron',sans-serif}
+.macro-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px}
+.macro-card{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:12px}
+.macro-title{font-size:11px;font-weight:700;margin-bottom:5px}
+.macro-body{font-size:11px;color:var(--muted);line-height:1.7}
+.sector-card{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:12px}
+.sector-title{font-size:11px;font-weight:700;color:var(--amber);margin-bottom:8px}
+.sector-tags{display:flex;flex-wrap:wrap;gap:6px}
+.sector-tag{background:rgba(255,179,0,.1);color:var(--amber);border:1px solid rgba(255,179,0,.3);border-radius:20px;padding:4px 12px;font-size:11px;font-weight:600}
+.summary-card{background:linear-gradient(135deg,rgba(255,215,0,.07),rgba(0,229,255,.05));border:1px solid rgba(255,215,0,.3);border-radius:10px;padding:14px;margin-bottom:12px;font-size:12px;line-height:1.9}
+.pred-layout{display:grid;grid-template-columns:175px 1fr;gap:12px;margin-bottom:12px;align-items:start}
+.radar-card{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:12px}
+.radar-title{font-size:10px;color:var(--muted);text-align:center;margin-bottom:8px}
+.model-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(172px,1fr));gap:8px}
+.model-card{background:var(--card);border-radius:10px;padding:12px}
+.model-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
+.model-name{font-size:11px;color:var(--muted);font-weight:600}
+.signal-badge{border-radius:4px;padding:2px 7px;font-size:10px;font-weight:700}
+.model-price{font-size:17px;font-weight:900;font-family:'Orbitron',sans-serif;margin-bottom:2px}
+.model-conf-row{display:flex;justify-content:space-between;font-size:11px;color:var(--muted)}
+.conf-bar-wrap{height:4px;background:var(--dim);border-radius:2px;overflow:hidden;margin:5px 0 8px}
+.conf-bar{height:100%;border-radius:2px;transition:width 1.4s ease}
+.model-reason{font-size:10px;color:var(--muted);line-height:1.65}
+.risk-catalyst{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px}
+.risk-card{background:var(--card);border:1px solid rgba(255,23,68,.3);border-radius:10px;padding:12px}
+.catalyst-card{background:var(--card);border:1px solid rgba(0,230,118,.3);border-radius:10px;padding:12px}
+.rc-title{font-size:12px;font-weight:700;margin-bottom:8px}
+.rc-item{font-size:11px;color:var(--muted);padding:5px 0;line-height:1.6;border-bottom:1px solid var(--border)}
+.rc-item:last-child{border-bottom:none}
+.log-card{background:var(--panel);border:1px solid var(--border2);border-radius:10px;padding:12px;margin-bottom:14px}
+.log-title{font-size:12px;font-weight:700;color:var(--cyan);margin-bottom:10px}
+.log-table{width:100%;border-collapse:collapse;font-size:11px}
+.log-table th{color:var(--muted);padding:4px 6px;text-align:left;border-bottom:1px solid var(--border)}
+.log-table td{padding:6px 6px;border-bottom:1px solid rgba(21,32,53,.5)}
+.disclaimer{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:10px;font-size:10px;color:var(--muted);text-align:center;line-height:1.8;margin-top:16px}
+.risk-banner{background:rgba(26,6,5,.4);border:1px solid rgba(255,23,68,.4);border-radius:8px;padding:8px 14px;margin-bottom:12px;font-size:11px;color:var(--amber)}
+@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+@keyframes fadeIn{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+@media(max-width:600px){.pred-layout{grid-template-columns:1fr}.radar-card{display:none}.main-card{flex-direction:column}}
+</style>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700;900&family=Orbitron:wght@700;900&display=swap" rel="stylesheet">
+</head>
+<body>
+<div class="title"><span class="gold">NIKKEI</span> DEEP <span class="cyan">ORACLE</span></div>
+<div class="subtitle" id="todayDate"></div>
+
+<div class="market-board">
+  <div class="market-board-title">
+    <span>📡 リアルタイム市場データ</span>
+    <button class="btn-refresh" onclick="loadMarket()">🔄 更新</button>
+  </div>
+  <div class="market-grid" id="marketGrid"><div class="market-item"><div class="market-label" style="color:var(--cyan)">取得中...</div></div></div>
+</div>
+
+<div class="tabs">
+  <button class="tab active" onclick="switchTab('nikkei')" id="tab-nikkei">🗾 日経平均</button>
+  <button class="tab" onclick="switchTab('stock')" id="tab-stock">📈 個別銘柄</button>
+</div>
+
+<div id="panel-nikkei">
+  <div class="log-card">
+    <div class="log-title">📋 予測精度ログ</div>
+    <table class="log-table">
+      <thead><tr><th>日付</th><th>予測値</th><th>実績値</th><th>誤差</th><th>精度</th></tr></thead>
+      <tbody>
+        <tr><td>5/29(金)</td><td style="color:var(--cyan)">65,700.00</td><td style="color:var(--gold)">66,329.50</td><td style="color:var(--amber)">+629.50</td><td style="color:var(--green)">0.95%</td></tr>
+        <tr><td>6/3(水)</td><td style="color:var(--muted)">未実施</td><td style="color:var(--gold)">68,402.13<span style="color:var(--amber);font-size:9px">★最高値</span></td><td>—</td><td>—</td></tr>
+        <tr><td>6/4(木)</td><td style="color:var(--cyan)" id="log64pred">予測後に表示</td><td style="color:var(--muted)" id="log64actual">—</td><td id="log64diff">—</td><td id="log64pct">—</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div style="text-align:center;margin-bottom:16px">
+    <button class="btn-predict" id="btnNikkei" onclick="runNikkei()">🔍 本日の終値を高精度予測する</button>
+    <div style="font-size:10px;color:var(--muted);margin-top:6px">Yahoo Finance実データ → RSI・VIX・為替・米市場 → 5モデルアンサンブル → 小数点2桁+95%CI</div>
+  </div>
+  <div id="nikkeiSpinner" style="display:none"></div>
+  <div id="nikkeiResult"></div>
+</div>
+
+<div id="panel-stock" style="display:none">
+  <div class="stock-input-row">
+    <input class="stock-input" id="stockInput" placeholder="銘柄コード（例: 8035）" value="8035" onkeydown="if(event.key==='Enter')runStock()">
+    <button class="btn-stock" onclick="runStock()">🔍 予測</button>
+  </div>
+  <div class="quick-btns">
+    <button class="quick-btn" onclick="setTicker('8035')">8035 東京エレクトロン</button>
+    <button class="quick-btn" onclick="setTicker('6762')">6762 TDK</button>
+    <button class="quick-btn" onclick="setTicker('9984')">9984 ソフトバンクG</button>
+    <button class="quick-btn" onclick="setTicker('7203')">7203 トヨタ</button>
+    <button class="quick-btn" onclick="setTicker('8306')">8306 三菱UFJ</button>
+    <button class="quick-btn" onclick="setTicker('6861')">6861 キーエンス</button>
+  </div>
+  <div id="stockSpinner" style="display:none"></div>
+  <div id="stockResult"></div>
+</div>
+
+<div class="disclaimer">⚠️ 本予測はAIによる統計的推計です。投資勧誘ではありません。投資判断はご自身の責任で行ってください。</div>
+
+<script>
+var marketData=null;
+function fmt2(v){return v!=null?v.toLocaleString('ja-JP',{minimumFractionDigits:2,maximumFractionDigits:2}):'—'}
+function fmtPx(v,isNk){return(isNk?'':'¥')+fmt2(v)}
+
+async function loadMarket(){
+  document.getElementById('marketGrid').innerHTML='<div class="market-item"><div class="market-label" style="color:var(--cyan)">取得中...</div></div>';
+  try{
+    var res=await fetch('/api/market');
+    var json=await res.json();
+    if(!json.ok)throw new Error('fail');
+    marketData=json.data;
+    var items=[{key:'nikkei',label:'日経平均',color:'var(--gold)',suffix:''},{key:'usdjpy',label:'ドル円',color:'var(--cyan)',suffix:'円'},{key:'sp500',label:'SP500',color:'var(--green)',suffix:''},{key:'nasdaq',label:'NASDAQ',color:'var(--purple)',suffix:''},{key:'vix',label:'VIX',color:'var(--amber)',suffix:''},{key:'us10y',label:'米10年金利',color:'var(--pink)',suffix:'%'}];
+    document.getElementById('marketGrid').innerHTML=items.map(function(x){
+      var d=marketData[x.key];
+      if(!d)return'<div class="market-item"><div class="market-label">'+x.label+'</div><div style="color:var(--muted);font-size:11px">取得失敗</div></div>';
+      var up=d.changePct>=0;
+      return'<div class="market-item"><div class="market-label">'+x.label+'</div><div class="market-price" style="color:'+x.color+'">'+fmt2(d.price)+x.suffix+'</div><div class="market-change '+(up?'up':'down')+'">'+(up?'+':'')+d.changePct.toFixed(2)+'%</div></div>';
+    }).join('');
+  }catch(e){
+    document.getElementById('marketGrid').innerHTML='<div class="market-item" style="grid-column:1/-1"><div class="market-label" style="color:var(--red)">⚠️ 取得失敗: '+e.message+'</div></div>';
   }
 }
+
+function showSpinner(id,steps){
+  var p=0,si=0;
+  var el=document.getElementById(id);
+  el.style.display='block';
+  el.innerHTML='<div class="spinner-wrap"><div class="spinner"><div class="spin1"></div><div class="spin2"></div></div><div class="spin-step" id="'+id+'Step">'+steps[0]+'</div><div class="progress-bar"><div class="progress-fill" id="'+id+'Bar" style="width:0%"></div></div><div style="font-size:11px;color:var(--muted)" id="'+id+'Pct">0% 完了</div></div>';
+  var iv=setInterval(function(){
+    p=Math.min(p+2+Math.random()*3,99);
+    si=Math.min(Math.floor(p/(100/steps.length)),steps.length-1);
+    document.getElementById(id+'Step').textContent=steps[si];
+    document.getElementById(id+'Bar').style.width=p.toFixed(0)+'%';
+    document.getElementById(id+'Pct').textContent=p.toFixed(0)+'% 完了';
+  },60);
+  return iv;
+}
+function hideSpinner(id,iv){clearInterval(iv);document.getElementById(id).style.display='none'}
+
+async function runNikkei(){
+  if(!marketData||!marketData.nikkei||!marketData.nikkei.price){await loadMarket();}
+  if(!marketData||!marketData.nikkei||!marketData.nikkei.price){alert('市場データ取得失敗。再試行してください。');return;}
+  var btn=document.getElementById('btnNikkei');
+  btn.disabled=true;btn.textContent='⏳ 分析中...';
+  var steps=['📡 Yahoo Financeデータ取得中...','📊 テクニカル分析（RSI/MACD/BB）...','💹 ファンダ分析（PER/EPS）...','🌐 マクロ分析（為替/金利/VIX）...','🤖 LSTM深層学習...','⚡ アンサンブル+95%CI算出...'];
+  var iv=showSpinner('nikkeiSpinner',steps);
+  try{
+    var res=await fetch('/api/predict',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({marketData:marketData})});
+    var json=await res.json();
+    if(!json.ok)throw new Error(json.error||'error');
+    hideSpinner('nikkeiSpinner',iv);
+    document.getElementById('log64pred').textContent=fmt2(json.ensemble.close)+'円';
+    document.getElementById('nikkeiResult').innerHTML=renderResult(json,true);
+    setTimeout(function(){initRadar('radarSvgNk',json.models)},100);
+  }catch(e){
+    hideSpinner('nikkeiSpinner',iv);
+    document.getElementById('nikkeiResult').innerHTML='<div style="background:rgba(255,23,68,.1);border:1px solid var(--red);border-radius:10px;padding:16px;color:var(--red)">⚠️ エラー: '+e.message+'</div>';
+  }
+  btn.disabled=false;btn.textContent='🔍 本日の終値を高精度予測する';
+}
+
+async function runStock(){
+  var ticker=document.getElementById('stockInput').value.trim();
+  if(!ticker)return;
+  var steps=['📡 銘柄データ取得中...','📊 テクニカル分析...','💹 ファンダ分析...','🌐 マクロ分析...','🤖 深層学習予測...','⚡ アンサンブル合成...'];
+  var iv=showSpinner('stockSpinner',steps);
+  try{
+    var mktRes=await fetch('/api/market?ticker='+ticker);
+    var mktJson=await mktRes.json();
+    var stockMkt=mktJson.ok?Object.assign({},marketData,{nikkei:mktJson.data}):marketData;
+    var res=await fetch('/api/predict',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({marketData:stockMkt,ticker:ticker})});
+    var json=await res.json();
+    if(!json.ok)throw new Error(json.error||'error');
+    hideSpinner('stockSpinner',iv);
+    document.getElementById('stockResult').innerHTML=renderResult(json,false,ticker);
+    setTimeout(function(){initRadar('radarSvgStock',json.models)},100);
+  }catch(e){
+    hideSpinner('stockSpinner',iv);
+    document.getElementById('stockResult').innerHTML='<div style="background:rgba(255,23,68,.1);border:1px solid var(--red);border-radius:10px;padding:16px;color:var(--red)">⚠️ エラー: '+e.message+'</div>';
+  }
+}
+
+function renderResult(json,isNk,ticker){
+  var ens=json.ensemble,inp=json.input,macro=json.macro;
+  var base=inp.current,up=ens.diffFromCurrent>=0;
+  var radarId=isNk?'radarSvgNk':'radarSvgStock';
+  var CC={technical:'var(--cyan)',fundamental:'var(--green)',sentiment:'var(--purple)',macro:'var(--blue)',deeplearning:'var(--pink)'};
+  var CI={technical:'📈',fundamental:'📊',sentiment:'💬',macro:'🌐',deeplearning:'🤖'};
+  var CL={technical:'テクニカル',fundamental:'ファンダメンタル',sentiment:'センチメント',macro:'マクロ経済',deeplearning:'ディープラーニング'};
+  var cards=Object.keys(json.models).map(function(k){
+    var m=json.models[k],c=CC[k],sc=m.signal;
+    var scol=sc==='上昇'||sc==='買い'?'var(--green)':sc==='下落'||sc==='売り'?'var(--red)':'var(--muted)';
+    return'<div class="model-card" style="border:1px solid '+c+'22"><div class="model-header"><span class="model-name">'+CI[k]+' '+CL[k]+'</span><span class="signal-badge" style="background:'+scol+'22;color:'+scol+';border:1px solid '+scol+'66">'+sc+'</span></div><div class="model-price" style="color:'+c+'">'+fmtPx(m.close,isNk)+'</div><div class="model-conf-row"><span>信頼度</span><span style="color:'+c+'">'+m.confidence.toFixed(1)+'%</span></div><div class="conf-bar-wrap"><div class="conf-bar" style="width:'+m.confidence+'%;background:linear-gradient(90deg,'+c+'66,'+c+')"></div></div><div class="model-reason">'+m.reason+'</div></div>';
+  }).join('');
+  return'<div class="result-wrap">'+(isNk?'<div class="risk-banner">⚠️ <b style="color:var(--red)">本日最大リスク：</b>米雇用統計（21:30）→ 今日終値への影響は間接的・<b>明日の相場を決定</b></div>':'')+'<div class="main-card"><div>'+(isNk?'<div style="font-size:20px;font-weight:900"><span class="gold">日経平均株価</span><span class="badge-small">史上最高値翌日</span></div><div style="font-size:13px;color:var(--muted);margin-top:5px">現在値 <span class="val-red">'+fmt2(base)+'</span></div><div style="font-size:11px;color:var(--muted);margin-top:2px">前日終値: '+fmt2(inp.prevClose)+'円 <span style="color:var(--amber)">← 史上最高値</span></div>':'<div style="font-size:11px;color:var(--muted)">'+ticker+'</div><div style="font-size:19px;font-weight:900">'+inp.name+'</div><div style="font-size:12px;color:var(--muted);margin-top:4px">現在価格 <b>¥'+fmt2(base)+'</b></div>')+'</div><div style="text-align:right"><div class="ensemble-label">🤖 アンサンブル予測終値</div><div class="ensemble-val">'+fmtPx(ens.close,isNk)+'</div><div style="font-size:12px;font-weight:800;color:'+(up?'var(--green)':'var(--red)')+';margin-top:2px">'+(up?'▲':'▼')+fmt2(Math.abs(ens.diffFromCurrent))+'円 ('+(up?'+':'')+((ens.diffFromCurrent/base)*100).toFixed(2)+'%)</div><div style="font-size:10px;color:var(--muted);margin-top:4px">95%CI: '+fmt2(ens.low)+'〜'+fmt2(ens.high)+'<br>推定誤差: ±'+fmt2(ens.sigma)+'円 | 信頼度: '+ens.confidence.toFixed(1)+'%</div></div></div><div class="stats-grid"><div class="stat-card"><div class="stat-label">上値目標(95%CI)</div><div class="stat-val" style="color:var(--green)">'+fmt2(ens.high)+'</div></div><div class="stat-card"><div class="stat-label">下値目標(95%CI)</div><div class="stat-val" style="color:var(--red)">'+fmt2(ens.low)+'</div></div><div class="stat-card"><div class="stat-label">総合信頼度</div><div class="stat-val" style="color:var(--cyan)">'+ens.confidence.toFixed(1)+'%</div></div></div>'+(isNk?'<div class="macro-grid"><div class="macro-card"><div class="macro-title" style="color:var(--cyan)">🇺🇸 米国・イベント</div><div class="macro-body">SP500 '+(macro.sp500>=0?'+':'')+macro.sp500.toFixed(2)+'% / NASDAQ '+(macro.nasdaq>=0?'+':'')+macro.nasdaq.toFixed(2)+'%<br>米雇用統計21:30→明日の相場を決定</div></div><div class="macro-card"><div class="macro-title" style="color:var(--gold)">💱 為替・金利</div><div class="macro-body">ドル円 '+macro.usdjpy.toFixed(2)+'円<br>米10年 '+macro.us10y.toFixed(2)+'% / VIX '+macro.vix.toFixed(2)+'</div></div></div><div class="sector-card"><div class="sector-title">🏭 注目セクター</div><div class="sector-tags"><span class="sector-tag">AI・半導体（東エレ・TDK）</span><span class="sector-tag">銀行・金融</span><span class="sector-tag">宇宙（SpaceX 6/12）</span></div></div>':'')+'<div class="summary-card">💡 '+ens.summary+'</div><div class="pred-layout"><div class="radar-card"><div class="radar-title">📡 信頼度レーダー</div><svg id="'+radarId+'" width="151" height="151" style="display:block;margin:0 auto"></svg></div><div class="model-cards">'+cards+'</div></div><div class="risk-catalyst"><div class="risk-card"><div class="rc-title" style="color:var(--red)">⚠️ リスク要因</div><div class="rc-item">• VIX='+macro.vix.toFixed(1)+'・米10年'+macro.us10y.toFixed(2)+'%高止まり</div><div class="rc-item">• ドル円'+macro.usdjpy.toFixed(2)+'円の円高リスク</div><div class="rc-item">• 米雇用統計（21:30）強い→明日急落</div></div><div class="catalyst-card"><div class="rc-title" style="color:var(--green)">🚀 上昇触媒</div><div class="rc-item">• 後場の押し目買い・自社株買い</div><div class="rc-item">• SpaceX上場（6/12）観測継続</div><div class="rc-item">• 雇用統計無難通過→明日反発</div></div></div></div>';
+}
+
+function initRadar(svgId,models){
+  var svg=document.getElementById(svgId);if(!svg)return;
+  var size=151,cx=size/2,cy=size/2,r=size*0.34;
+  var keys=['technical','fundamental','sentiment','macro','deeplearning'];
+  var labels=['テクニカル','ファンダ','センチメント','マクロ','ディープ\nラーニング'];
+  var vals=keys.map(function(k){return(models[k]?models[k].confidence:0)/100});
+  var axPts=keys.map(function(_,i){var a=(i/keys.length)*Math.PI*2-Math.PI/2;return[cx+Math.cos(a)*r,cy+Math.sin(a)*r]});
+  var pts=vals.map(function(v,i){var a=(i/keys.length)*Math.PI*2-Math.PI/2;return[cx+Math.cos(a)*r*v,cy+Math.sin(a)*r*v]});
+  var h='';
+  [.25,.5,.75,1].forEach(function(s){h+='<polygon points="'+axPts.map(function(p){return(cx+(p[0]-cx)*s)+','+(cy+(p[1]-cy)*s)}).join(' ')+'" fill="none" stroke="#1e3050" stroke-width="1"/>'});
+  axPts.forEach(function(p){h+='<line x1="'+cx+'" y1="'+cy+'" x2="'+p[0]+'" y2="'+p[1]+'" stroke="#1e3050" stroke-width="1"/>'});
+  h+='<polygon points="'+pts.map(function(p){return p.join(',')}).join(' ')+'" fill="rgba(255,215,0,.15)" stroke="#ffd700" stroke-width="2" style="filter:drop-shadow(0 0 6px #ffd700)"/>';
+  pts.forEach(function(p){h+='<circle cx="'+p[0]+'" cy="'+p[1]+'" r="4" fill="#ffd700"/>'});
+  axPts.forEach(function(p,i){var lx=cx+(p[0]-cx)*1.35,ly=cy+(p[1]-cy)*1.28;labels[i].split('\n').forEach(function(line,j){h+='<text x="'+lx+'" y="'+(ly+j*11)+'" text-anchor="middle" dominant-baseline="middle" fill="#4a6080" font-size="8">'+line+'</text>'})});
+  svg.innerHTML=h;
+}
+
+function switchTab(tab){
+  ['nikkei','stock'].forEach(function(t){
+    document.getElementById('panel-'+t).style.display=t===tab?'':'none';
+    document.getElementById('tab-'+t).classList.toggle('active',t===tab);
+  });
+}
+function setTicker(code){document.getElementById('stockInput').value=code}
+
+document.getElementById('todayDate').textContent=new Date().toLocaleDateString('ja-JP',{year:'numeric',month:'long',day:'numeric',weekday:'short'})+' · Yahoo Finance API · 小数点2桁 · 95%CI';
+loadMarket();
+</script>
+</body>
+</html>
