@@ -1,11 +1,13 @@
 {
   "version": 2,
   "builds": [
-    { "src": "api/*.js", "use": "@vercel/node" },
-    { "src": "public/**", "use": "@vercel/static" }
+    { "src": "api/market.js", "use": "@vercel/node" },
+    { "src": "api/api/predict.js", "use": "@vercel/node" },
+    { "src": "api/api/public/index.html", "use": "@vercel/static" }
   ],
   "routes": [
-    { "src": "/api/(.*)", "dest": "/api/$1" },
-    { "src": "/(.*)", "dest": "/public/$1" }
+    { "src": "/api/market", "dest": "/api/market.js" },
+    { "src": "/api/predict", "dest": "/api/api/predict.js" },
+    { "src": "/(.*)", "dest": "/api/api/public/index.html" }
   ]
 }
